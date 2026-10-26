@@ -1,0 +1,11 @@
+/* Theme, fonts and the core components come from @optica/core */
+@import '@optica/core/assets/index.css';
+
+/* brand colours taken from the Depthoptica logo (MainLogo.vue) */
+:root {
+  --brand: #b52e09;
+}
+
+.dark {
+  --brand: #ed784c;
+}

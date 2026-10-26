@@ -1,0 +1,11 @@
+/data
+.depth
+.venv
+node_modules
+test.py
+/dist
+*.local
+Keyence
+create_edges.py
+create_mask.py
+__pycache__
