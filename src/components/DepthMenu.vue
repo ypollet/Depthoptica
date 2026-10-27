@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { downloadCSV, downloadJSON, exportFilename } from '@optica/core'
-import { AppMenu } from '@optica/core/ui/app-menu'
+import { downloadCSV, downloadJSON, exportFilename } from 'optica-core'
+import { AppMenu } from 'optica-core/ui/app-menu'
 import HelpGuide from '@/components/help/HelpGuide.vue'
 import { Credits } from '@/components/credits'
 import { useImagesStore, useSettingsStore } from '@/lib/stores'

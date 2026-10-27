@@ -1,4 +1,4 @@
-import { OrthancProvider, ProviderFactory, RepositoryFactory } from "@optica/core"
+import { OrthancProvider, ProviderFactory, RepositoryFactory } from "optica-core"
 import { DepthRepository } from "./repositories/depth_repository"
 
 // Imported first by main.ts: the stores and components get the repository from the factories

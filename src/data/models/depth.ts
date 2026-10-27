@@ -3,7 +3,7 @@ import {
     Acquisition, Annotations, Landmark, distanceVector, landmarkCSVRow, randomColorRGB,
     type AnnotationsObject, type AnnotationsSelection, type Coordinates, type Coords3D,
     type LandmarkObject, type Position, type ProjectImage, type ScaleUnit,
-} from "@optica/core"
+} from "optica-core"
 
 // Stacked image with its depth map. Edge thresholds: names of the edge levels the profiles can follow
 export type DepthImage = ProjectImage & {

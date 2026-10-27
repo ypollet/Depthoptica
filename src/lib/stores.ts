@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import type { Project } from '@optica/core'
+import type { Project } from 'optica-core'
 import type { DepthAcquisition, DepthImage } from '@/data/models/depth'
 
 export const useSettingsStore = defineStore('settings', {

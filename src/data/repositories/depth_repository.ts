@@ -1,5 +1,5 @@
 import axios from "axios"
-import { parseAcquisitions, ProjectRepository, type AcquisitionObject, type DataProvider } from "@optica/core"
+import { parseAcquisitions, ProjectRepository, type AcquisitionObject, type DataProvider } from "optica-core"
 import { DepthAcquisition, type DepthImage, type Profile, type ProfileLandmarks } from "../models/depth"
 
 // Reads the standard payload, or the one of the depthoptica backends not migrated yet (Orthanc plugin):

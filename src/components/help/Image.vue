@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Card, CardContent } from '@optica/core/ui/card';
+import { Card, CardContent } from 'optica-core/ui/card';
 import { PhMouseLeftClick, PhMouseRightClick, PhMouseScroll } from '@phosphor-icons/vue'
 
 </script>

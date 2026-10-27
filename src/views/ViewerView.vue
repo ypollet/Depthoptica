@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { usePersistedAnnotations } from '@optica/core'
-import { Separator } from '@optica/core/ui/separator'
+import { usePersistedAnnotations } from 'optica-core'
+import { Separator } from 'optica-core/ui/separator'
 import DepthMenu from '@/components/DepthMenu.vue'
 import DepthViewer from '@/components/DepthViewer.vue'
 import { MainLogo } from '@/components/logo'

@@ -1,6 +1,6 @@
 # Depthoptica (core)
 
-Depthoptica rebuilt on [`core/`](../core): the viewers, landmark and distance lists, menu, models and data layer come from `@optica/core` and `optica_core`; this folder only keeps what is specific to images with a depth map.
+Depthoptica rebuilt on [`core/`](../core): the viewers, landmark and distance lists, menu, models and data layer come from `optica-core` and `optica_core`; this folder only keeps what is specific to images with a depth map.
 
 - `src/data/models/depth.ts`: `DepthImage`, `Profile` (height profile between two landmarks), `DepthAnnotations` (core annotations + profiles, reads the files of the first depth version), `DepthAcquisition` (one per depth image: its own size, pixel ratio and depth range).
 - `src/data/repositories/depth_repository.ts`: the `/profile` call, and the old `/images` payload (Orthanc plugin).

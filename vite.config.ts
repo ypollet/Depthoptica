@@ -22,7 +22,7 @@ export default defineConfig({
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))
     },
-    // @optica/core is linked from ../core/frontend, which has its own node_modules:
+    // optica-core is linked from ../core/frontend, which has its own node_modules:
     // use a single copy of the libraries holding state (Vue reactivity, injection keys...)
     dedupe: ['vue', 'reka-ui', '@vueuse/core', '@tanstack/vue-query', 'vuedraggable', 'color', 'mathjs', 'axios', 'embla-carousel-vue'],
   },
