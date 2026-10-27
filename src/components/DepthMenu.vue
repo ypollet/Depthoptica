@@ -2,7 +2,7 @@
 import { downloadCSV, downloadJSON, exportFilename } from '@optica/core'
 import { AppMenu } from '@optica/core/ui/app-menu'
 import HelpGuide from '@/components/help/HelpGuide.vue'
-import { credits } from '@/config/credits'
+import { Credits } from '@/components/credits'
 import { useImagesStore, useSettingsStore } from '@/lib/stores'
 
 const settingsStore = useSettingsStore()
@@ -29,9 +29,12 @@ function importAnnotations(content: string) {
 
 <template>
   <AppMenu :reverse="settingsStore.isLeft" @update:reverse="settingsStore.useToggleLeft" app-name="Depthoptica"
-    :credits="credits" @export="exportAnnotations" @import="importAnnotations">
+    @export="exportAnnotations" @import="importAnnotations">
     <template #help-guide>
       <HelpGuide />
+    </template>
+    <template #credits>
+      <Credits />
     </template>
   </AppMenu>
 </template>

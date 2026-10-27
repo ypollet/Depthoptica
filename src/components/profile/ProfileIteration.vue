@@ -74,12 +74,14 @@ function permute() {
           <input type="color"
             class="h-8 w-8 block bg-white border border-gray-950 cursor-pointer rounded-lg disabled:opacity-50 disabled:pointer-events-none dark:bg-slate-900 dark:border-gray-300"
             :value="profile.getColorHEX()" title="Choose your color" @change="changeColor($event)">
-          <Label v-show="!profile.edit_label" class="flex whitespace-nowrap w-36 font-normal text-lg" @dblclick="showInput">
-            {{ profile.label }}
-          </Label>
-          <Input v-show="profile.edit_label" ref="input" type="text" :model-value="profile.label"
-            class="flex h-auto w-full px-0" @focusout="profile.edit_label = false" @keyup.enter="profile.edit_label = false"
-            @update:model-value="(label) => profile.label = label.toString()" />
+            <Label v-show="!profile.edit_label" class="flex whitespace-nowrap w-36 font-normal text-lg"
+              @dblclick="showInput">
+              {{ profile.label }}
+            </Label>
+            <Input v-show="profile.edit_label" ref="input" type="text" :model-value="profile.label"
+              class="flex h-auto w-full px-0" @focusout="profile.edit_label = false"
+              @keyup.enter="profile.edit_label = false"
+              @update:model-value="(label) => profile.label = label.toString()" />
         </div>
         <div class="flex row justify-end space-x-3">
           <Button class="relative w-6 h-6 p-0" variant="secondary" v-show="profile.landmarks.isFull()"
@@ -100,20 +102,20 @@ function permute() {
     </div>
     <LineChart v-if="selected && profile.landmarks.isFull()" :profile="profile"
       :edge-thresholds="imagesStore.selectedImage?.edgeThresholds" />
-    <div v-if="selected" class="flex row justify-between space-x-2">
-      <div class="flex row space-x-1">
-        <Label class="flex whitespace-nowrap w-auto items-center">Length :</Label>
-        <Label class="inline-flex flex-wrap w-auto items-start content-start gap-x-2 gap-y-1">
-          <div v-for="(length, segment) in profile.length" :key="segment" class="min-w-20 text-right tabular-nums"
-            @mouseover="profile.hover_segment = segment" @mouseout="profile.hover_segment = undefined">
-            {{ scaled(computeDistance(length)) }}{{ annotations.scale }}
-          </div>
-        </Label>
-      </div>
+    <div class="flex row justify-between space-x-2">
       <div class="flex row space-x-1">
         <Label class="flex whitespace-nowrap w-auto items-center">Distance :</Label>
         <Label class="flex whitespace-nowrap w-auto items-center">
           {{ profile.distance ? scaled(computeDistance(profile.distance)) : 0 }} {{ annotations.scale }}
+        </Label>
+      </div>
+      <div class="flex row space-x-1">
+        <Label class="flex whitespace-nowrap w-auto items-center">Length :</Label>
+        <Label class="inline-flex flex-wrap w-auto items-start content-start gap-x-2 gap-y-1">
+          <div v-for="(length, segment) in profile.length" :key="segment" class="text-right tabular-nums"
+            @mouseover="profile.hover_segment = segment" @mouseout="profile.hover_segment = undefined">
+            {{ scaled(computeDistance(length)) }} {{ annotations.scale }}
+          </div>
         </Label>
       </div>
     </div>
