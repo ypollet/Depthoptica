@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, useTemplateRef } from 'vue'
-import { round } from 'mathjs'
 import { PhArrowsDownUp, PhEye, PhEyeClosed, PhX } from '@phosphor-icons/vue'
 import { computeDistance, ROUNDING, toScale, vectorToString } from 'optica-core'
 import { Button } from 'optica-core/ui/button'
@@ -26,8 +25,6 @@ const imagesStore = useImagesStore()
 const annotations = computed(() => imagesStore.annotations as DepthAnnotations)
 
 const input = useTemplateRef('input')
-
-const scaled = (length: number) => round(toScale(length, annotations.value.adjustFactor, annotations.value.scale), ROUNDING)
 
 function changeColor(event: Event) {
   const target = event.currentTarget as HTMLInputElement | null
@@ -106,7 +103,7 @@ function permute() {
       <div class="flex row space-x-1">
         <Label class="flex whitespace-nowrap w-auto items-center">Distance :</Label>
         <Label class="flex whitespace-nowrap w-auto items-center">
-          {{ profile.distance ? scaled(computeDistance(profile.distance)) : 0 }} {{ annotations.scale }}
+          {{ profile.distance ? annotations.scaled(computeDistance(profile.distance)) : 0 }} {{ annotations.scale }}
         </Label>
       </div>
       <div class="flex row space-x-1">
@@ -114,7 +111,7 @@ function permute() {
         <Label class="inline-flex flex-wrap w-auto items-start content-start gap-x-2 gap-y-1">
           <div v-for="(length, segment) in profile.length" :key="segment" class="text-right tabular-nums"
             @mouseover="profile.hover_segment = segment" @mouseout="profile.hover_segment = undefined">
-            {{ scaled(computeDistance(length)) }} {{ annotations.scale }}
+            {{ annotations.scaled(computeDistance(length)) }} {{ annotations.scale }}
           </div>
         </Label>
       </div>

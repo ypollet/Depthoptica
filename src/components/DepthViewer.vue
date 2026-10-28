@@ -97,7 +97,9 @@ function drawTick(ctx: CanvasRenderingContext2D, at: Coordinates, vector: Coordi
 }
 
 // last end of a profile: a triangle pointing along it
-function drawEnd(ctx: CanvasRenderingContext2D, landmark: Landmark, at: Coordinates, vector: Coordinates, radius: number) {
+function drawEnd(ctx: CanvasRenderingContext2D, landmark: Landmark, at: Coordinates, vector: Coordinates, default_radius: number) {
+  const radius = landmark.isClicked ? default_radius * 2 : default_radius
+  
   const angle = Math.atan2(vector.y, vector.x)
   const size = radius * 2
   const vertices = [0, 2 * Math.PI / 3, 4 * Math.PI / 3].map((a) => ({
@@ -111,7 +113,7 @@ function drawEnd(ctx: CanvasRenderingContext2D, landmark: Landmark, at: Coordina
   ctx.fillStyle = landmark.getColorHEX()
   ctx.fill()
   ctx.lineWidth = radius / 2
-  ctx.strokeStyle = landmark.isClicked ? "white" : "black"
+  ctx.strokeStyle = "black"
   ctx.stroke()
 }
 
