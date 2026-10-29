@@ -6,11 +6,11 @@ import { AnnotationTabs } from 'optica-core/ui/annotation-tabs'
 import { DistanceList } from 'optica-core/ui/distance'
 import { Label } from 'optica-core/ui/label'
 import { LandmarkList } from 'optica-core/ui/landmark'
-import { ThumbnailViewer } from 'optica-core/ui/thumbnail-viewer'
-import { ToggleGroup, ToggleGroupItem } from 'optica-core/ui/toggle-group'
 import ProfileList from '@/components/profile/ProfileList.vue'
 import { DEPTH_UNITS } from '@/config/units'
 import { useImagesStore } from '@/lib/stores'
+import { ImageOverview } from 'optica-core/ui/image-overview'
+import { ToggleImage } from 'optica-core/ui/toggle-image'
 
 const imagesStore = useImagesStore()
 const { project, acquisition, annotations, selectedImage } = storeToRefs(imagesStore)

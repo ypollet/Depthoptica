@@ -309,7 +309,7 @@ async function updateProfile() {
     <div class="flex flex-row space-x-2 justify-between items-center">
       <div>
         <div v-if="props.edgeThresholds != undefined && props.edgeThresholds.length > 0" class="flex row space-x-1">
-          <Label class="content-center">Smooth profile</Label>
+          <Label class="content-center">Profile Sampling</Label>
           <Select class="w-fit" v-model="props.profile.edgeThreshold" @update:model-value="updateProfile">
             <SelectTrigger class="w-fit">
               <SelectValue />
