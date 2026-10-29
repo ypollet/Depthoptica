@@ -5,6 +5,7 @@ import { defineConfig, type Alias } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vueJsx from '@vitejs/plugin-vue-jsx'
 import tailwindcss from '@tailwindcss/vite'
+import { createManualChunks } from 'optica-core/vite'
 
 // In dev, use the local optica-core sources (../core/frontend) when they exist,
 // so that changes in the core are picked up live. Builds always use the published package.
@@ -54,11 +55,22 @@ export default defineConfig(({ command }) => {
       assetsDir: "static",
       rollupOptions: {
         output: {
-          manualChunks: (id: string) => {
-            if (id.includes('node_modules')) {
-              return id.toString().split('node_modules/')[1].split('/')[0].toString();
+          manualChunks: createManualChunks()
+          /*(id) => {
+            if (id.includes("node_modules")) {
+              const chunks: Record<string, RegExp> = {
+                vue: /(vue|@vue\/[^/]+)\//,
+                pinia: /pinia[^/]*\//,          // pinia + pinia-plugin-persistedstate
+                'reka-ui': /reka-ui\//,
+                mathjs: /mathjs\//,
+              }
+              for (const [chunkName, pattern] of Object.entries(chunks)) {
+                if (pattern.test(id)) return chunkName
+              }
             }
-          },
+
+          }
+            */
         },
       },
     }
