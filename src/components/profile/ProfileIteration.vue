@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import { computed, useTemplateRef } from 'vue'
+import { computed, ref, useTemplateRef } from 'vue'
 import { PhArrowsDownUp, PhEye, PhEyeClosed, PhX } from '@phosphor-icons/vue'
-import { computeDistance, ROUNDING, toScale, vectorToString } from 'optica-core'
+import { vectorToString } from 'optica-core'
 import { Button } from 'optica-core/ui/button'
 import { Input } from 'optica-core/ui/input'
 import { Label } from 'optica-core/ui/label'
 import { LandmarkIteration } from 'optica-core/ui/landmark'
 import type { DepthAnnotations, Profile } from '@/data/models/depth'
 import { useImagesStore } from '@/lib/stores'
-import LineChart from './LineChart.vue'
+import ProfileChart from './ProfileChart.vue'
 
 const props = defineProps<{
   profile: Profile
@@ -23,8 +23,11 @@ const emit = defineEmits<{
 
 const imagesStore = useImagesStore()
 const annotations = computed(() => imagesStore.annotations as DepthAnnotations)
+const scaled = computed(() => annotations.value.scaledProfile(props.profile))
 
 const input = useTemplateRef('input')
+// the label is being typed
+const editing = ref<boolean>(false)
 
 function changeColor(event: Event) {
   const target = event.currentTarget as HTMLInputElement | null
@@ -32,7 +35,7 @@ function changeColor(event: Event) {
     return
   }
   props.profile.setColorHEX(target.value)
-  props.profile.landmarks.setColorHEX(target.value)
+  props.profile.landmarks.forEach((landmark) => landmark.setColorHEX(target.value))
 }
 
 // the last end removed deletes the profile
@@ -53,7 +56,7 @@ function showInput(event: MouseEvent) {
     emit('select', props.index)
     return
   }
-  props.profile.edit_label = true
+  editing.value = true
   input.value?.$el?.focus?.()
 }
 
@@ -71,13 +74,13 @@ function permute() {
           <input type="color"
             class="h-8 w-8 block bg-white border border-gray-950 cursor-pointer rounded-lg disabled:opacity-50 disabled:pointer-events-none dark:bg-slate-900 dark:border-gray-300"
             :value="profile.getColorHEX()" title="Choose your color" @change="changeColor($event)">
-            <Label v-show="!profile.edit_label" class="flex whitespace-nowrap w-36 font-normal text-lg"
+            <Label v-show="!editing" class="flex whitespace-nowrap w-36 font-normal text-lg"
               @dblclick="showInput">
               {{ profile.label }}
             </Label>
-            <Input v-show="profile.edit_label" ref="input" type="text" :model-value="profile.label"
-              class="flex h-auto w-full px-0" @focusout="profile.edit_label = false"
-              @keyup.enter="profile.edit_label = false"
+            <Input v-show="editing" ref="input" type="text" :model-value="profile.label"
+              class="flex h-auto w-full px-0" @focusout="editing = false"
+              @keyup.enter="editing = false"
               @update:model-value="(label) => profile.label = label.toString()" />
         </div>
         <div class="flex row justify-end space-x-3">
@@ -97,21 +100,21 @@ function permute() {
         </div>
       </div>
     </div>
-    <LineChart v-if="selected && profile.landmarks.isFull()" :profile="profile"
+    <ProfileChart v-if="selected && profile.landmarks.isFull()" :profile="profile"
       :edge-thresholds="imagesStore.selectedImage?.edgeThresholds" />
     <div class="flex row justify-between space-x-2">
       <div class="flex row space-x-1">
         <Label class="flex whitespace-nowrap w-auto items-center">Distance :</Label>
         <Label class="flex whitespace-nowrap w-auto items-center">
-          {{ profile.distance ? annotations.scaled(computeDistance(profile.distance)) : 0 }} {{ annotations.scale }}
+          {{ scaled.distance }} {{ annotations.scale }}
         </Label>
       </div>
       <div class="flex row space-x-1">
         <Label class="flex whitespace-nowrap w-auto items-center">Length :</Label>
         <Label class="inline-flex flex-wrap w-auto items-start content-start gap-x-2 gap-y-1">
-          <div v-for="(length, segment) in profile.length" :key="segment" class="text-right tabular-nums"
-            @mouseover="profile.hover_segment = segment" @mouseout="profile.hover_segment = undefined">
-            {{ annotations.scaled(computeDistance(length)) }} {{ annotations.scale }}
+          <div v-for="(length, segment) in scaled.segments" :key="segment" class="text-right tabular-nums"
+            @mouseover="imagesStore.hover = { profile, segment }" @mouseout="imagesStore.hover = null">
+            {{ length }} {{ annotations.scale }}
           </div>
         </Label>
       </div>

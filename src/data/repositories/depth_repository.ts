@@ -1,9 +1,9 @@
 import axios from "axios"
-import { parseAcquisitions, ProjectRepository, type AcquisitionObject, type DataProvider } from "optica-core"
+import { parseAcquisitions, ProjectRepository, type AcquisitionObject, type Coords3D, type DataProvider } from "optica-core"
 import { DepthAcquisition, type DepthImage, type Profile, type ProfileLandmarks } from "../models/depth"
 
 // Reads the standard payload, or the one of the depthoptica backends not migrated yet (Orthanc plugin):
-// { images: [{ id, label, size, edgeThresholds }], thumbnails }, one acquisition per image
+// { images: [{ id, label, size, edgeThresholds, hasThumbnail }] }, one acquisition per image
 export function parseDepth(data: any): AcquisitionObject<DepthImage>[] {
     if (data.acquisitions) {
         return parseAcquisitions<DepthImage>(data)
@@ -12,13 +12,13 @@ export function parseDepth(data: any): AcquisitionObject<DepthImage>[] {
         id: image.id,
         label: image.label,
         images: [],
-        standaloneImages: [{ name: image.id, label: image.label, size: image.size, edgeThresholds: image.edgeThresholds }],
+        standaloneImages: [{ name: image.id, label: image.label, size: image.size, edgeThresholds: image.edgeThresholds, hasThumbnail: image.hasThumbnail }],
         size: image.size,
-        thumbnails: data.thumbnails,
     }))
 }
 
-export class DepthRepository extends ProjectRepository<DepthImage, DepthAcquisition> {
+// the positions are 3D (z from the depth map)
+export class DepthRepository extends ProjectRepository<DepthImage, DepthAcquisition, Coords3D> {
     constructor(provider: DataProvider) {
         super(provider, parseDepth, (object) => new DepthAcquisition(object))
     }

@@ -2,7 +2,7 @@
 import type Color from 'color'
 import { useTemplateRef, watch } from 'vue'
 import { storeToRefs } from 'pinia'
-import { Landmark, type Coordinates, type Pose } from 'optica-core'
+import { interaction, Landmark, type Coordinates, type Pose } from 'optica-core'
 import { ImageViewer, type ViewerDrawContext } from 'optica-core/ui/image-viewer'
 import { ProjectLoader } from 'optica-core/ui/project-loader'
 import type { Profile } from '@/data/models/depth'
@@ -17,9 +17,10 @@ const { acquisition, annotations, selectedImage } = storeToRefs(imagesStore)
 
 const repository = getRepository()
 
-// the viewer watches its landmarks; the profiles (hover from the chart, segments) are drawn by drawProfiles
+// the viewer watches its landmarks; the profiles (segments, hover from the chart) are drawn by drawProfiles
 const viewer = useTemplateRef('viewer')
 watch(() => annotations.value?.profiles, () => viewer.value?.update(), { deep: true })
+watch(() => imagesStore.hover, () => viewer.value?.update())
 
 async function loadProject() {
   const project = await repository.getImages(imagesStore.objectPath)
@@ -75,7 +76,7 @@ async function move(landmark: Landmark, pos: Coordinates) {
     // the backend gives the 3D ends with the profile
     await updateProfile(profile)
   } else {
-    landmark.setPosition(await repository.computeLandmarkPosition(imagesStore.objectPath, landmark.pose))
+    landmark.position = await repository.computeLandmarkPosition(imagesStore.objectPath, landmark.pose)
   }
 }
 
@@ -98,7 +99,7 @@ function drawTick(ctx: CanvasRenderingContext2D, at: Coordinates, vector: Coordi
 
 // last end of a profile: a triangle pointing along it
 function drawEnd(ctx: CanvasRenderingContext2D, landmark: Landmark, at: Coordinates, vector: Coordinates, default_radius: number) {
-  const radius = landmark.isClicked ? default_radius * 2 : default_radius
+  const radius = interaction.pressed == landmark.id ? default_radius * 2 : default_radius
   
   const angle = Math.atan2(vector.y, vector.x)
   const size = radius * 2
@@ -153,8 +154,9 @@ function drawProfiles(ctx: CanvasRenderingContext2D, view: ViewerDrawContext<Lan
       drawTick(ctx, { x: from.x + canvasVector.x * t, y: from.y + canvasVector.y * t }, canvasVector, color, view.radius * 2)
     }
     // where the mouse is on the chart
-    if (profile.hover_profile != undefined) {
-      const t = profile.hover_profile
+    const hover = imagesStore.hover
+    if (hover?.profile === profile && hover.fraction != undefined) {
+      const t = hover.fraction
       drawTick(ctx, { x: from.x + canvasVector.x * t, y: from.y + canvasVector.y * t }, canvasVector, color, view.radius * 4)
     }
 
@@ -169,7 +171,7 @@ function drawProfiles(ctx: CanvasRenderingContext2D, view: ViewerDrawContext<Lan
 </script>
 
 <template>
-  <ProjectLoader :load="loadProject" :query-key="['project', imagesStore.objectPath]">
+  <ProjectLoader :load="loadProject">
     <ImageViewer v-if="acquisition && annotations && selectedImage" ref="viewer" class="object-fit" :image="selectedImage"
       :size="acquisition.sizeOf()" :camera="acquisition.camera" :landmarks="annotations.landmarks"
       :distances="annotations.distances" :extra-landmarks="annotations.shownProfileLandmarks" :draw="drawProfiles"

@@ -1,81 +1,13 @@
 import Color from "color"
 import {
-    Acquisition, Annotations, Landmark, distanceVector, landmarkCSVRow, randomColorRGB,
+    Acquisition, Annotations, DequeMax2, Landmark, computeDistance, distanceVector, landmarkCSVRow, randomColorRGB,
     type AnnotationsObject, type AnnotationsSelection, type Coordinates, type Coords3D,
-    type LandmarkObject, type Position, type ProjectImage, type ScaleUnit,
+    type LandmarkObject, type ProjectImage, type ScaleUnit,
 } from "optica-core"
 
 // Stacked image with its depth map. Edge thresholds: names of the edge levels the profiles can follow
 export type DepthImage = ProjectImage & {
     edgeThresholds?: string[] | null
-}
-
-// The two ends of a profile, adding a third one drops the first
-export class Ends {
-    items: Landmark[] = []
-
-    constructor(items: Landmark[] = []) {
-        items.forEach((landmark) => this.add(landmark))
-    }
-
-    get length(): number {
-        return this.items.length
-    }
-
-    get first(): Landmark | undefined {
-        return this.items[0]
-    }
-
-    get last(): Landmark | undefined {
-        return this.items[this.items.length - 1]
-    }
-
-    isEmpty(): boolean {
-        return this.items.length == 0
-    }
-
-    isFull(): boolean {
-        return this.items.length == 2
-    }
-
-    add(landmark: Landmark) {
-        if (this.isFull()) {
-            this.items.shift()
-        }
-        this.items.push(landmark)
-    }
-
-    popFirst() {
-        this.items.shift()
-    }
-
-    popLast() {
-        this.items.pop()
-    }
-
-    permute() {
-        this.items.reverse()
-    }
-
-    contains(landmark: Landmark | string | null | undefined): boolean {
-        return this.items.some((item) => item.equals(landmark))
-    }
-
-    remove(landmark: Landmark | string) {
-        this.items = this.items.filter((item) => !item.equals(landmark))
-    }
-
-    forEach(callback: (landmark: Landmark) => void) {
-        this.items.forEach(callback)
-    }
-
-    setColorHEX(color: string) {
-        this.items.forEach((landmark) => landmark.setColorHEX(color))
-    }
-
-    toJSON(): LandmarkObject[] {
-        return this.items.map((landmark) => landmark.toJSON())
-    }
 }
 
 // Sent by the backend: the 3D ends and the height along the profile, in segments (masked parts cut it)
@@ -94,56 +26,69 @@ export type ProfileObject = {
     smooth?: boolean
 }
 
+// Saved form of a profile: with its lengths shown in the scale of the annotations (not read back)
+export type ProfileAnnotationObject = ProfileObject & {
+    distance: number,
+    length: number
+}
+
+// Lengths of a profile shown in the scale of the annotations
+export type ScaledProfile = {
+    // straight between the ends
+    distance: number
+    // along the surface, total and per segment
+    length: number
+    segments: number[]
+    // chart of the height along the profile, not rounded
+    points: Coordinates[][]
+}
+
 // Height profile between two landmarks of the depth map
 export class Profile {
     label: string
-    landmarks: Ends
+    // the two ends, adding a third one drops the first
+    landmarks: DequeMax2<Landmark>
     // x: position along the profile, y: height, both physical
     subLandmarkSegments: Coordinates[][]
     edgeThreshold: string
     smooth: boolean
     color: Color
-    // position of the mouse on the chart (fraction of the profile) and hovered segment
-    hover_profile: number | undefined = undefined
-    hover_segment: number | undefined = undefined
-    edit_label: boolean = false
     show: boolean = true
 
-    constructor(label: string, landmarks: Ends | null = null, subLandmarkSegments: Coordinates[][] = [], edgeThreshold: string = "none", smooth: boolean = true, color: Color | null = null) {
+    constructor(label: string, landmarks: Landmark[] = [], subLandmarkSegments: Coordinates[][] = [], edgeThreshold: string = "none", smooth: boolean = true, color: Color | null = null) {
         this.label = label
-        this.landmarks = landmarks ?? new Ends()
+        this.landmarks = new DequeMax2(landmarks)
         this.subLandmarkSegments = subLandmarkSegments
         this.edgeThreshold = edgeThreshold
         this.smooth = smooth
         this.color = color ?? Color.rgb(randomColorRGB())
     }
 
-    // length along the surface, per segment
-    get length(): Coordinates[][] | undefined {
+    // physical length along the surface of each segment (masked parts cut the profile), undefined without both ends.
+    // A segment starts from the last point of the previous one: the jump over a masked part counts
+    get segmentLengths(): number[] | undefined {
         if (!this.landmarks.isFull() || this.subLandmarkSegments.length === 0) {
             return undefined
         }
-        const intervals: Coordinates[][] = []
-        let last: Coordinates | null = null
-        this.subLandmarkSegments.forEach((segment) => {
-            const interval: Coordinates[] = []
-            segment.forEach((point) => {
-                if (last != null) {
-                    interval.push(distanceVector(last, point))
-                }
-                last = point
-            })
-            intervals.push(interval)
-        })
-        return intervals
+        let last: Coordinates | undefined
+        return this.subLandmarkSegments.map((segment) => computeDistance(segment.map((point) => {
+            const interval = distanceVector(last ?? point, point)
+            last = point
+            return interval
+        })))
     }
 
-    // straight 3D distance between the ends
-    get distance(): Position[] | undefined {
+    // physical length along the surface: sum of the segments
+    get length(): number | undefined {
+        return this.segmentLengths?.reduce((sum, length) => sum + length, 0)
+    }
+
+    // physical straight 3D distance between the ends
+    get distance(): number | undefined {
         if (!this.landmarks.isFull()) {
             return undefined
         }
-        return [distanceVector(this.landmarks.first!.position, this.landmarks.last!.position)]
+        return computeDistance([distanceVector(this.landmarks.first!.position, this.landmarks.last!.position)])
     }
 
     // swap the ends, the chart is mirrored on the same range
@@ -168,8 +113,8 @@ export class Profile {
         if (!this.landmarks.isFull()) {
             return
         }
-        this.landmarks.first!.setPosition(result.start)
-        this.landmarks.last!.setPosition(result.end)
+        this.landmarks.first!.position = result.start
+        this.landmarks.last!.position = result.end
         this.subLandmarkSegments = result.subLandmarkSegments
     }
 
@@ -183,20 +128,20 @@ export class Profile {
 
     toJSON(): ProfileObject {
         return {
-            label: this.label, color: this.color.hex(), landmarks: this.landmarks.toJSON(),
+            label: this.label, color: this.color.hex(), landmarks: this.landmarks.items.map((landmark) => landmark.toJSON()),
             subLandmarkSegments: this.subLandmarkSegments, edgeThreshold: this.edgeThreshold, smooth: this.smooth,
         }
     }
 
     static fromObject(object: ProfileObject): Profile {
-        const landmarks = new Ends(object.landmarks.map((landmark) => Landmark.fromJSON(landmark)))
+        const landmarks = object.landmarks.map((landmark) => Landmark.fromJSON(landmark))
         return new Profile(object.label, landmarks, object.subLandmarkSegments ?? [], object.edgeThreshold ?? "none",
             object.smooth ?? true, object.color ? Color(object.color) : null)
     }
 }
 
 export type DepthAnnotationsObject = AnnotationsObject & {
-    profiles?: ProfileObject[]
+    profiles?: ProfileAnnotationObject[]
 }
 
 export type DepthSelection = AnnotationsSelection & {
@@ -272,8 +217,24 @@ export class DepthAnnotations extends Annotations {
         super.showInSidebar(landmark)
     }
 
+    // lengths of the profile shown in the current scale, corrected by the calibration and rounded (0 while they can't be measured)
+    scaledProfile(profile: Profile): ScaledProfile {
+        return {
+            distance: this.toUnit(profile.distance),
+            length: this.toUnit(profile.length),
+            segments: (profile.segmentLengths ?? []).map((length) => this.toUnit(length)),
+            points: profile.subLandmarkSegments.map((segment) =>
+                segment.map((point) => ({ x: this.inScale(point.x), y: this.inScale(point.y) }))),
+        }
+    }
+
     toJSON(): DepthAnnotationsObject {
-        return { ...super.toJSON(), profiles: this.profiles.map((profile) => profile.toJSON()) }
+        return { ...super.toJSON(),
+                profiles: this.profiles.map((profile) => {
+                    const { distance, length } = this.scaledProfile(profile)
+                    return { ...profile.toJSON(), distance, length }
+                }),
+        }
     }
 
     // also reads the per image stores exported by the first depth version

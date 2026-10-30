@@ -42,7 +42,7 @@ const tabs = [
         </template>
         <template #distances>
           <DistanceList v-model="annotations.distances" v-model:selected="annotations.selectedDistanceIndex"
-            v-model:scale="annotations.scale" :adjust-factor="annotations.adjustFactor" :units="DEPTH_UNITS">
+            :annotations="annotations" :units="DEPTH_UNITS">
             <template #landmark-info="{ landmark }">
               <Label class="whitespace-nowrap">{{ vectorToString(landmark.position) }}</Label>
             </template>

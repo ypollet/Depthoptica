@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import type { Project } from 'optica-core'
-import type { DepthAcquisition, DepthImage } from '@/data/models/depth'
+import type { DepthAcquisition, DepthImage, Profile } from '@/data/models/depth'
 
 export const useSettingsStore = defineStore('settings', {
   state: () => ({ isLeft: false }),
@@ -15,12 +15,21 @@ export const useSettingsStore = defineStore('settings', {
   }
 })
 
+// The profile under the mouse in the sidebar: one of its lengths (`segment`)
+// or its chart, at `fraction` of the profile
+export type ProfileHover = {
+  profile: Profile
+  segment?: number
+  fraction?: number
+}
+
 // The project holds everything else: one acquisition per depth image, each with its camera and annotations.
 // Its annotations are saved by usePersistedAnnotations (ViewerView).
 export const useImagesStore = defineStore('images', {
   state: () => ({
     objectPath: "",
     project: null as Project<DepthImage, DepthAcquisition> | null,
+    hover: null as ProfileHover | null,
   }),
   getters: {
     acquisition: (state) => state.project?.acquisition ?? null,

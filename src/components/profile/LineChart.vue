@@ -1,25 +1,24 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, useTemplateRef, watch } from 'vue'
 import * as d3 from 'd3'
-import { downloadBlob, Scale, type Coordinates } from 'optica-core'
+import { downloadBlob, type Coordinates } from 'optica-core'
 import { Button } from 'optica-core/ui/button'
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuLabel, ContextMenuTrigger } from 'optica-core/ui/context-menu'
 import { Label } from 'optica-core/ui/label'
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from 'optica-core/ui/select'
-import { SelectScale } from 'optica-core/ui/select-scale'
-import { Toggle } from 'optica-core/ui/toggle'
-import { DEPTH_UNITS } from '@/config/units'
-import type { Profile } from '@/data/models/depth'
-import { getRepository } from '@/data/setup'
-import { useImagesStore } from '@/lib/stores'
 
+// Line chart of segments (cut by gaps), x and y already in the unit to show
 const props = defineProps<{
-  profile: Profile
-  edgeThresholds?: string[] | null
+  segments: Coordinates[][]
+  // index of the segment drawn highlighted
+  highlighted?: number
+  // name of the exported files, without extension
+  filename: string
 }>()
 
-const repository = getRepository()
-const imagesStore = useImagesStore()
+const emit = defineEmits<{
+  // position of the mouse along the chart, fraction of the x range (undefined: left the chart)
+  hover: [fraction: number | undefined]
+}>()
 
 const VERTICAL_SPACING = 20
 const HORIZONTAL_SPACING = 30
@@ -29,21 +28,12 @@ const container = useTemplateRef("container")
 const svg = useTemplateRef("svg")
 
 function drawChart() {
-  let dataSegments = props.profile.subLandmarkSegments
-  if (dataSegments.length == 0 || container.value == null) {
+  const scaledData = props.segments
+  if (scaledData.length == 0 || container.value == null) {
     return;
   }
   const svgEl = d3.select(svg.value)
   svgEl.selectAll('*').remove()
-
-  let scaledData = dataSegments.map((segment) => {
-    return segment.map((point) => {
-      return {
-        x: point.x / Scale[imagesStore.annotations!.scale],
-        y: point.y / Scale[imagesStore.annotations!.scale]
-      }
-    })
-  })
 
   const xValues = scaledData.map((segment) => segment.map((point) => point.x)).flat()
   const yValues = scaledData.map((segment) => segment.map((point) => point.y)).flat()
@@ -55,7 +45,7 @@ function drawChart() {
   let yRange = maxY - minY
 
   // If axises are too disproportionate, make a square chart
-  if (xRange < (yRange * 0.05)) {
+  if (xRange < (yRange * 0.5)) {
     xRange = yRange
   }
   if (yRange < (xRange * 0.05)) {
@@ -137,7 +127,7 @@ function drawChart() {
     svgEl.append("path")
       .datum(scaledSegment)
       .attr("fill", "none")
-      .attr("stroke", (index == props.profile.hover_segment) ? "limegreen" : "steelblue")
+      .attr("stroke", (index == props.highlighted) ? "limegreen" : "steelblue")
       .attr("stroke-width", 2)
       .attr("d", line);
   })
@@ -152,7 +142,7 @@ function drawChart() {
     const x0 = Math.min(maxX, Math.max(xScale.invert(d3.pointer(event)[0]), minX));
     const y0 = getYAtX(x0, scaledData)
 
-    props.profile.hover_profile = x0 / maxX
+    emit('hover', x0 / maxX)
     if (y0 === undefined) {
 
       focus.style("opacity", 0)
@@ -174,7 +164,7 @@ function drawChart() {
   }
   function mouseout() {
     focus.style("opacity", 0)
-    props.profile.hover_profile = undefined
+    emit('hover', undefined)
   }
 
   function getYAtX(x: number, segments: Coordinates[][]): number | undefined {
@@ -243,7 +233,7 @@ function exportSVG() {
     let header = '<?xml version="1.0" encoding="UTF-8"?>'
     var svgData = svgClone.outerHTML;
     let blob: Blob = new Blob([header, svgData], { type: 'image/svg+xml;charset=utf-8;' })
-    downloadBlob(blob, imagesStore.objectPath + "-" + props.profile.label.split(' ').join('_') + ".svg")
+    downloadBlob(blob, props.filename + ".svg")
   }
 }
 
@@ -274,7 +264,7 @@ function exportJPG() {
       ctx.scale(ratio_img, ratio_img)
       ctx.drawImage(image, 0, 0)
       canvas.convertToBlob({ type: "image/jpeg", quality: 1 }).then((blob) => {
-        downloadBlob(blob, imagesStore.objectPath + "-" + props.profile.label.split(' ').join('_') + ".jpg")
+        downloadBlob(blob, props.filename + ".jpg")
       })
     }
   }
@@ -290,53 +280,13 @@ onMounted(() => {
   drawChart()
 })
 onBeforeUnmount(() => resizeObserver?.disconnect())
-watch(() => props.profile.subLandmarkSegments, drawChart)
-watch(() => props.profile.hover_segment, drawChart)
-watch(() => imagesStore.annotations?.scale, drawChart)
-
-// edge threshold or smoothing changed: ask the backend again
-async function updateProfile() {
-  const result = await repository.computeProfile(imagesStore.objectPath, props.profile)
-  if (result) {
-    props.profile.setResult(result)
-  }
-}
+watch(() => props.segments, drawChart)
+watch(() => props.highlighted, drawChart)
 
 </script>
 
 <template>
   <div class="flex flex-col space-y-2">
-    <div class="flex flex-row space-x-2 justify-between items-center">
-      <div>
-        <div v-if="props.edgeThresholds != undefined && props.edgeThresholds.length > 0" class="flex row space-x-1">
-          <Label class="content-center">Profile Sampling</Label>
-          <Select class="w-fit" v-model="props.profile.edgeThreshold" @update:model-value="updateProfile">
-            <SelectTrigger class="w-fit">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem class="h-8" value="none">
-                  <div class="flex flex-row space-x-2">
-                    <span class="content-center">none</span>
-                  </div>
-
-                </SelectItem>
-                <SelectItem class="h-8" v-for="threshold in props.edgeThresholds" :value="threshold">
-                  <div class="flex flex-row space-x-2">
-                    <span class="content-center">{{ threshold }}</span>
-                  </div>
-                </SelectItem>
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-      <div class="flex items-center gap-3">
-        <Toggle :model-value="props.profile.smooth" @update:model-value="(pressed: boolean) => { props.profile.smooth = pressed; updateProfile() }">Smooth</Toggle>
-      </div>
-      <SelectScale v-if="imagesStore.annotations" v-model="imagesStore.annotations.scale" :units="DEPTH_UNITS" />
-    </div>
     <ContextMenu>
       <ContextMenuTrigger>
         <div ref="container" class="flex grow flex-col w-full h-auto">

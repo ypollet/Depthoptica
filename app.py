@@ -31,6 +31,7 @@ class DepthDataset(Dataset):
 
     def images(self, id):
         depth_file = self.load(id)
+        folder = self.thumbnails_folder(id, depth_file)
         acquisitions = []
         for image_id, entry in depth_file["stacked"].items():
             data = entry["data"]
@@ -45,17 +46,18 @@ class DepthDataset(Dataset):
                     data.get("label", image_id),
                     size=size,
                     edgeThresholds=list(thresholds) if thresholds else None,
+                    hasThumbnail=self.has_thumbnail(folder, self.filename(image_id, entry)),
                 )],
-                thumbnails=len(depth_file.get("thumbnails", "")) != 0,
             ))
         return project(*acquisitions)
 
     def full_image(self, id, image_id):
         return self.directory(id), self.filename(image_id, self.stacked(id, image_id))
 
+    # the thumbnail has the file name of its image
     def thumbnail(self, id, image_id):
-        folder = self.load(id).get("thumbnails") or "thumbnails"
-        return os.path.join(self.directory(id), folder), self.filename(image_id, self.stacked(id, image_id))
+        folder, _ = super().thumbnail(id, image_id)
+        return folder, self.filename(image_id, self.stacked(id, image_id))
 
     def depthmap(self, id, entry):
         return cv2.imread(os.path.join(self.directory(id), entry["depthmap"]), cv2.IMREAD_GRAYSCALE | cv2.IMREAD_ANYDEPTH)
