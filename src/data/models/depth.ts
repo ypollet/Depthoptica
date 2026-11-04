@@ -83,12 +83,14 @@ export class Profile {
         return this.segmentLengths?.reduce((sum, length) => sum + length, 0)
     }
 
-    // physical straight 3D distance between the ends
+    // physical straight 3D distance between the ends, undefined while one of their positions isn't known
     get distance(): number | undefined {
-        if (!this.landmarks.isFull()) {
+        const start = this.landmarks.first?.position
+        const end = this.landmarks.last?.position
+        if (!this.landmarks.isFull() || start == null || end == null) {
             return undefined
         }
-        return computeDistance([distanceVector(this.landmarks.first!.position, this.landmarks.last!.position)])
+        return computeDistance([distanceVector(start, end)])
     }
 
     // swap the ends, the chart is mirrored on the same range

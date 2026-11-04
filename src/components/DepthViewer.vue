@@ -2,7 +2,7 @@
 import type Color from 'color'
 import { useTemplateRef, watch } from 'vue'
 import { storeToRefs } from 'pinia'
-import { interaction, Landmark, type Distance, type Polygon, type Coordinates, type Pose } from 'optica-core'
+import { interaction, type Landmark, type Distance, type Polygon, type Coordinates, type Pose } from 'optica-core'
 import { ImageViewer, type ViewerDrawContext } from 'optica-core/ui/image-viewer'
 import { ProjectLoader } from 'optica-core/ui/project-loader'
 import type { Profile } from '@/data/models/depth'
@@ -28,10 +28,9 @@ async function loadProject() {
   return project
 }
 
-async function createLandmark(pose: Pose, color?: Color): Promise<Landmark> {
-  const id = annotations.value!.generateID()
-  const position = await repository.computeLandmarkPosition(imagesStore.objectPath, pose)
-  return new Landmark(id, id, pose, position, color)
+// shown at once, its position comes later from the backend
+function createLandmark(pose: Pose, color?: Color): Landmark {
+  return annotations.value!.createLandmark(pose, (pose) => repository.computeLandmarkPosition(imagesStore.objectPath, pose), color)
 }
 
 async function updateProfile(profile: Profile) {
@@ -48,29 +47,30 @@ async function place(pos: Coordinates) {
   }
   const pose = { marker: pos, image: selectedImage.value }
   if (current.tab == "landmarks") {
-    current.landmarks.push(await createLandmark(pose))
+    current.landmarks.push(createLandmark(pose))
     return
   }
   if (current.tab == "profiles") {
     // a third end replaces the first one
     const profile = current.selectedProfile ?? current.newProfile()
-    profile.landmarks.add(await createLandmark(pose, profile.color))
+    // the backend gives the 3D ends with the profile
+    profile.landmarks.add(current.createLandmark(pose, null, profile.color))
     await updateProfile(profile)
     return
   }
   // the distance, polygon or box being drawn
   const measure = current.target()
   if (measure) {
-    current.add(measure, await createLandmark(pose, measure.color))
+    current.add(measure, createLandmark(pose, measure.color))
   }
 }
 
 // landmark dragged from the middle of a side of the polygon being drawn
-async function insert(annotation: Distance | Polygon, index: number, pos: Coordinates) {
+function insert(annotation: Distance | Polygon, index: number, pos: Coordinates) {
   if (!selectedImage.value) {
     return
   }
-  annotation.landmarks.splice(index, 0, await createLandmark({ marker: pos, image: selectedImage.value }, annotation.color))
+  annotation.landmarks.splice(index, 0, createLandmark({ marker: pos, image: selectedImage.value }, annotation.color))
 }
 
 async function move(landmark: Landmark, pos: Coordinates) {
