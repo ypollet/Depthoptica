@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { usePersistedAnnotations } from 'optica-core'
+import { usePersistedAnnotations, usePersistedView } from 'optica-core'
 import { Separator } from 'optica-core/ui/separator'
 import DepthMenu from '@/components/DepthMenu.vue'
 import DepthViewer from '@/components/DepthViewer.vue'
@@ -15,6 +15,8 @@ imagesStore.setPath(urlParams.get('series') ?? "")
 
 // the annotations survive a reload (sessionStorage, by series)
 usePersistedAnnotations(() => imagesStore.project)
+// and the image the viewer is on
+usePersistedView(() => imagesStore.project)
 </script>
 
 <template>

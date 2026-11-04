@@ -1,27 +1,23 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
+import { AnnotationsPanel } from 'optica-core/ui/annotations-panel'
 import { vectorToString } from 'optica-core'
-import { AnnotationTabs } from 'optica-core/ui/annotation-tabs'
-import { DistanceList } from 'optica-core/ui/distance'
 import { Label } from 'optica-core/ui/label'
-import { LandmarkList } from 'optica-core/ui/landmark'
 import ProfileList from '@/components/profile/ProfileList.vue'
 import { DEPTH_UNITS } from '@/config/units'
 import { useImagesStore } from '@/lib/stores'
 import { ImageOverview } from 'optica-core/ui/image-overview'
 import { ToggleImage } from 'optica-core/ui/toggle-image'
+import { PhChartLine } from '@phosphor-icons/vue'
 
 const imagesStore = useImagesStore()
 const { project, acquisition, annotations, selectedImage } = storeToRefs(imagesStore)
 
 const images = computed(() => (project.value?.acquisitions ?? []).map((item) => ({ value: String(item.id), label: item.label })))
 
-const tabs = [
-  { value: "landmarks", label: "Landmarks" },
-  { value: "distances", label: "Distances" },
-  { value: "profiles", label: "Profilometer" },
-]
+// after the shared annotation tabs
+const TABS = [{ value: "profiles", label: "Profilometer", icon: PhChartLine }]
 </script>
 
 <template>
@@ -32,26 +28,17 @@ const tabs = [
     <ToggleImage v-if="project" :items="images" :model-value="acquisition ? String(acquisition.id) : undefined"
       @update:model-value="(id : string | undefined) => { if (id != undefined) imagesStore.selectAcquisition(id) }" />
     <div class="flex-none space-y-4 py-4">
-      <AnnotationTabs v-if="annotations" v-model="annotations.tab" :tabs="tabs">
-        <template #landmarks>
-          <LandmarkList v-model="annotations.landmarks">
-            <template #info="{ landmark }">
-              <Label class="whitespace-nowrap">{{ vectorToString(landmark.position) }}</Label>
-            </template>
-          </LandmarkList>
+      <AnnotationsPanel v-if="annotations" :annotations="annotations" :extra-tabs="TABS" :units="DEPTH_UNITS">
+        <template #landmark-info="{ landmark }">
+          <Label class="whitespace-nowrap">{{ vectorToString(landmark.position) }}</Label>
         </template>
-        <template #distances>
-          <DistanceList v-model="annotations.distances" v-model:selected="annotations.selectedDistanceIndex"
-            :annotations="annotations" :units="DEPTH_UNITS">
-            <template #landmark-info="{ landmark }">
-              <Label class="whitespace-nowrap">{{ vectorToString(landmark.position) }}</Label>
-            </template>
-          </DistanceList>
+        <template #measure-landmark-info="{ landmark }">
+          <Label class="whitespace-nowrap">{{ vectorToString(landmark.position) }}</Label>
         </template>
         <template #profiles>
           <ProfileList />
         </template>
-      </AnnotationTabs>
+      </AnnotationsPanel>
     </div>
   </div>
 </template>

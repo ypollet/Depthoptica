@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed, ref, useTemplateRef } from 'vue'
+import { computed } from 'vue'
 import { PhArrowsDownUp, PhEye, PhEyeClosed, PhX } from '@phosphor-icons/vue'
 import { vectorToString } from 'optica-core'
 import { Button } from 'optica-core/ui/button'
-import { Input } from 'optica-core/ui/input'
+import { LabelInput } from 'optica-core/ui/input'
 import { Label } from 'optica-core/ui/label'
 import { LandmarkIteration } from 'optica-core/ui/landmark'
 import type { DepthAnnotations, Profile } from '@/data/models/depth'
@@ -24,10 +24,6 @@ const emit = defineEmits<{
 const imagesStore = useImagesStore()
 const annotations = computed(() => imagesStore.annotations as DepthAnnotations)
 const scaled = computed(() => annotations.value.scaledProfile(props.profile))
-
-const input = useTemplateRef('input')
-// the label is being typed
-const editing = ref<boolean>(false)
 
 function changeColor(event: Event) {
   const target = event.currentTarget as HTMLInputElement | null
@@ -50,16 +46,6 @@ function removeEnd(first: boolean) {
   }
 }
 
-function showInput(event: MouseEvent) {
-  event.preventDefault()
-  if (!props.selected) {
-    emit('select', props.index)
-    return
-  }
-  editing.value = true
-  input.value?.$el?.focus?.()
-}
-
 function permute() {
   props.profile.permute()
   annotations.value.selectedProfileIndex = props.index
@@ -74,14 +60,8 @@ function permute() {
           <input type="color"
             class="h-8 w-8 block bg-white border border-gray-950 cursor-pointer rounded-lg disabled:opacity-50 disabled:pointer-events-none dark:bg-slate-900 dark:border-gray-300"
             :value="profile.getColorHEX()" title="Choose your color" @change="changeColor($event)">
-            <Label v-show="!editing" class="flex whitespace-nowrap w-36 font-normal text-lg"
-              @dblclick="showInput">
-              {{ profile.label }}
-            </Label>
-            <Input v-show="editing" ref="input" type="text" :model-value="profile.label"
-              class="flex h-auto w-full px-0" @focusout="editing = false"
-              @keyup.enter="editing = false"
-              @update:model-value="(label) => profile.label = label.toString()" />
+            <LabelInput v-model="profile.label" :editable="selected" class="flex whitespace-nowrap w-36 font-normal text-lg"
+              input-class="flex h-auto w-full px-0" @dblclick="selected || emit('select', index)" />
         </div>
         <div class="flex row justify-end space-x-3">
           <Button class="relative w-6 h-6 p-0" variant="secondary" v-show="profile.landmarks.isFull()"

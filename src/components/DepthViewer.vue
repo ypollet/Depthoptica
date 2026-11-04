@@ -2,7 +2,7 @@
 import type Color from 'color'
 import { useTemplateRef, watch } from 'vue'
 import { storeToRefs } from 'pinia'
-import { interaction, Landmark, type Coordinates, type Pose } from 'optica-core'
+import { interaction, Landmark, type Distance, type Polygon, type Coordinates, type Pose } from 'optica-core'
 import { ImageViewer, type ViewerDrawContext } from 'optica-core/ui/image-viewer'
 import { ProjectLoader } from 'optica-core/ui/project-loader'
 import type { Profile } from '@/data/models/depth'
@@ -47,23 +47,30 @@ async function place(pos: Coordinates) {
     return
   }
   const pose = { marker: pos, image: selectedImage.value }
-  switch (current.tab) {
-    case "landmarks":
-      current.landmarks.push(await createLandmark(pose))
-      break
-    case "distances": {
-      const distance = current.selectedDistance ?? current.newDistance()
-      distance.landmarks.push(await createLandmark(pose, distance.color))
-      break
-    }
-    case "profiles": {
-      // a third end replaces the first one
-      const profile = current.selectedProfile ?? current.newProfile()
-      profile.landmarks.add(await createLandmark(pose, profile.color))
-      await updateProfile(profile)
-      break
-    }
+  if (current.tab == "landmarks") {
+    current.landmarks.push(await createLandmark(pose))
+    return
   }
+  if (current.tab == "profiles") {
+    // a third end replaces the first one
+    const profile = current.selectedProfile ?? current.newProfile()
+    profile.landmarks.add(await createLandmark(pose, profile.color))
+    await updateProfile(profile)
+    return
+  }
+  // the distance, polygon or box being drawn
+  const measure = current.target()
+  if (measure) {
+    current.add(measure, await createLandmark(pose, measure.color))
+  }
+}
+
+// landmark dragged from the middle of a side of the polygon being drawn
+async function insert(annotation: Distance | Polygon, index: number, pos: Coordinates) {
+  if (!selectedImage.value) {
+    return
+  }
+  annotation.landmarks.splice(index, 0, await createLandmark({ marker: pos, image: selectedImage.value }, annotation.color))
 }
 
 async function move(landmark: Landmark, pos: Coordinates) {
@@ -174,8 +181,11 @@ function drawProfiles(ctx: CanvasRenderingContext2D, view: ViewerDrawContext<Lan
   <ProjectLoader :load="loadProject">
     <ImageViewer v-if="acquisition && annotations && selectedImage" ref="viewer" class="object-fit" :image="selectedImage"
       :size="acquisition.sizeOf()" :camera="acquisition.camera" :landmarks="annotations.landmarks"
-      :distances="annotations.distances" :extra-landmarks="annotations.shownProfileLandmarks" :draw="drawProfiles"
+      :distances="annotations.distances" :polygons="annotations.polygons"
+      :boxes="annotations.boxes" :opened="annotations.opened"
+      :extra-landmarks="annotations.shownProfileLandmarks" :draw="drawProfiles"
       @place="place" @move="move" @remove="(landmark) => annotations!.removeLandmark(landmark.id)"
-      @select="(landmark) => annotations!.showInSidebar(landmark)" />
+      @select="(landmark) => annotations!.showInSidebar(landmark)" @finish="annotations!.finishPolygon()"
+      @insert="insert" />
   </ProjectLoader>
 </template>

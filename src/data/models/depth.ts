@@ -232,7 +232,7 @@ export class DepthAnnotations extends Annotations {
         return { ...super.toJSON(),
                 profiles: this.profiles.map((profile) => {
                     const { distance, length } = this.scaledProfile(profile)
-                    return { ...profile.toJSON(), distance, length }
+                    return { ...profile.toJSON(), landmarks: profile.landmarks.items.map((landmark) => this.landmarkToJSON(landmark)), distance, length }
                 }),
         }
     }
@@ -270,7 +270,8 @@ export class DepthAnnotations extends Annotations {
     toCSVRows(): string[][] {
         return [
             ...super.toCSVRows(),
-            ...this.profiles.flatMap((profile) => profile.landmarks.items.map((landmark) => landmarkCSVRow("Profile", profile.label, landmark))),
+            ...this.profiles.flatMap((profile) => profile.landmarks.items.map((landmark) =>
+                [...landmarkCSVRow("Profile", profile.label, landmark), ...this.scaledPositionCSV(landmark)])),
         ]
     }
 
