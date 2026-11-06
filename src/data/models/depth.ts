@@ -155,13 +155,6 @@ export class DepthAnnotations extends Annotations {
     profiles: Profile[] = []
     selectedProfileIndex: number = -1
     scale: ScaleUnit = "mm"
-    // the image of the acquisition, for the files exported by the first depth version
-    image: DepthImage
-
-    constructor(image: DepthImage) {
-        super()
-        this.image = image
-    }
 
     get selectedProfile(): Profile | null {
         return this.profiles[this.selectedProfileIndex] ?? null
@@ -239,12 +232,10 @@ export class DepthAnnotations extends Annotations {
         }
     }
 
-    // also reads the per image stores exported by the first depth version
     merge(object: Partial<DepthAnnotationsObject>) {
-        const normalized = this.fromFirstVersion(object)
         const used = new Set(this.allLandmarks.map((landmark) => landmark.id))
-        super.merge(normalized)
-        const profiles = (normalized.profiles ?? []).map((profile) => Profile.fromObject(profile))
+        super.merge(object)
+        const profiles = (object.profiles ?? []).map((profile) => Profile.fromObject(profile))
         // super.merge used new ids for its landmarks: avoid them too
         this.allLandmarks.forEach((landmark) => used.add(landmark.id))
         this.claimIDs(profiles.flatMap((profile) => profile.landmarks.items), used)
@@ -276,23 +267,6 @@ export class DepthAnnotations extends Annotations {
                 [...landmarkCSVRow("Profile", profile.label, landmark), ...this.scaledPositionCSV(landmark)])),
         ]
     }
-
-    // First depth exports: landmarks { pos, pose } (pixel, 3D), "adjustFactor", profiles' ends in { array }
-    private fromFirstVersion(object: any): Partial<DepthAnnotationsObject> {
-        const landmark = (old: any): LandmarkObject => ("pos" in old)
-            ? { id: old.id, label: old.label, color: old.color, pose: { marker: old.pos, image: this.image }, position: old.pose }
-            : old
-        return {
-            scale_factor: object.scale_factor ?? object.adjustFactor,
-            scale: object.scale,
-            landmarks: (object.landmarks ?? []).map(landmark),
-            distances: (object.distances ?? []).map((distance: any) => ({ ...distance, landmarks: (distance.landmarks ?? []).map(landmark) })),
-            profiles: (object.profiles ?? []).map((profile: any) => ({
-                ...profile,
-                landmarks: (Array.isArray(profile.landmarks) ? profile.landmarks : profile.landmarks?.array ?? []).map(landmark),
-            })),
-        }
-    }
 }
 
 // One depth image: its own size, pixel ratio and depth range, so its own annotations
@@ -300,6 +274,6 @@ export class DepthAcquisition extends Acquisition<DepthImage> {
     declare annotations: DepthAnnotations
 
     protected createAnnotations(): DepthAnnotations {
-        return new DepthAnnotations(this.standaloneImages[0] ?? this.images[0]!)
+        return new DepthAnnotations()
     }
 }

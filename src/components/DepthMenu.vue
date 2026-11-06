@@ -21,7 +21,6 @@ function exportAnnotations(format: "csv" | "json") {
   }
 }
 
-// also reads the files of the first depth version (stores by image id)
 function importAnnotations(content: string) {
   imagesStore.project?.importAnnotations(JSON.parse(content))
 }
