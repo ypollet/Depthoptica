@@ -13,8 +13,9 @@ const imagesStore = useImagesStore()
 const urlParams = new URLSearchParams(window.location.search)
 imagesStore.setPath(urlParams.get('series') ?? "")
 
-// the annotations survive a reload (sessionStorage, by series)
-usePersistedAnnotations(() => imagesStore.project)
+// the annotations survive a reload (sessionStorage, by series),
+// the positions lost by it are computed again
+usePersistedAnnotations(() => imagesStore.project, { onRestored: () => imagesStore.recomputePositions() })
 // and the image the viewer is on
 usePersistedView(() => imagesStore.project)
 </script>

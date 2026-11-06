@@ -33,11 +33,8 @@ function createLandmark(pose: Pose, color?: Color): Landmark {
   return annotations.value!.createLandmark(pose, (pose) => repository.computeLandmarkPosition(imagesStore.objectPath, pose), color)
 }
 
-async function updateProfile(profile: Profile) {
-  const result = await repository.computeProfile(imagesStore.objectPath, profile)
-  if (result) {
-    profile.setResult(result)
-  }
+function updateProfile(profile: Profile) {
+  return imagesStore.updateProfile(profile)
 }
 
 async function place(pos: Coordinates) {

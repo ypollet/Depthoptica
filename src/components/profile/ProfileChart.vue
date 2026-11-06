@@ -6,7 +6,6 @@ import { SelectScale } from 'optica-core/ui/select-scale'
 import { Toggle } from 'optica-core/ui/toggle'
 import { DEPTH_UNITS } from '@/config/units'
 import type { DepthAnnotations, Profile } from '@/data/models/depth'
-import { getRepository } from '@/data/setup'
 import { useImagesStore } from '@/lib/stores'
 import LineChart from './LineChart.vue'
 
@@ -16,7 +15,6 @@ const props = defineProps<{
   edgeThresholds?: string[] | null
 }>()
 
-const repository = getRepository()
 const imagesStore = useImagesStore()
 const annotations = computed(() => imagesStore.annotations as DepthAnnotations)
 
@@ -26,11 +24,8 @@ const highlighted = computed(() => imagesStore.hover?.profile === props.profile 
 const filename = computed(() => imagesStore.objectPath + "-" + props.profile.label.split(' ').join('_'))
 
 // edge threshold or smoothing changed: ask the backend again
-async function updateProfile() {
-  const result = await repository.computeProfile(imagesStore.objectPath, props.profile)
-  if (result) {
-    props.profile.setResult(result)
-  }
+function updateProfile() {
+  return imagesStore.updateProfile(props.profile)
 }
 </script>
 

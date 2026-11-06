@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import type { Project } from 'optica-core'
 import type { DepthAcquisition, DepthImage, Profile } from '@/data/models/depth'
+import { getRepository } from '@/data/setup'
 
 export const useSettingsStore = defineStore('settings', {
   state: () => ({ isLeft: false }),
@@ -43,6 +44,25 @@ export const useImagesStore = defineStore('images', {
     setPath(path: string) {
       this.$reset()
       this.objectPath = path
+    },
+    // the 3D ends and the chart of the profile, by the backend. Dropped if an end moved meanwhile
+    async updateProfile(profile: Profile) {
+      const poses = profile.landmarks.items.map((landmark) => landmark.pose)
+      const result = await getRepository().computeProfile(this.objectPath, profile)
+      const moved = profile.landmarks.items.some((landmark, index) => landmark.pose !== poses[index])
+      if (result && !moved) {
+        profile.setResult(result)
+      }
+    },
+    // computes the positions and profiles that aren't known: old exports have none, a reload during a computation loses one
+    recomputePositions() {
+      const repository = getRepository()
+      this.project?.acquisitions.forEach((acquisition) => {
+        acquisition.annotations.recomputePositions((pose) => repository.computeLandmarkPosition(this.objectPath, pose))
+        acquisition.annotations.profilesToRecompute().forEach((profile) => {
+          this.updateProfile(profile).catch((error) => console.error("Profile not computed:", error))
+        })
+      })
     },
     selectAcquisition(id: string) {
       this.project?.selectAcquisition(id)

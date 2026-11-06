@@ -173,6 +173,14 @@ export class DepthAnnotations extends Annotations {
         return [...super.allLandmarks, ...this.profileLandmarks]
     }
 
+    // The profiles with an end position or the chart missing: to compute again with the backend, one request
+    // gives both (none is sent under two ends, see DepthRepository.computeProfile).
+    // Their ends aren't in coreLandmarks: recomputePositions leaves them out
+    profilesToRecompute(): Profile[] {
+        return this.profiles.filter((profile) => profile.subLandmarkSegments.length == 0
+            || profile.landmarks.items.some((landmark) => landmark.position == null))
+    }
+
     profileOf(landmark: Landmark | string): Profile | undefined {
         return this.profiles.find((profile) => profile.landmarks.contains(landmark))
     }
