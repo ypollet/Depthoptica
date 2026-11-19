@@ -7,76 +7,81 @@ from flask import abort, jsonify, request
 from flask_cors import cross_origin
 
 from optica_core import Dataset, acquisition, create_app, image, project
-from depth_profile import smooth_array, wu_line
+from depth_profile import masked, smooth_array, wu_line
 
 
 class DepthDataset(Dataset):
-    """Stacked images with their depth map (depth.json).
+    """Stacked images with their height map (depth.json).
 
-    Each image has its own size, pixel ratio and depth range: it is an acquisition of its own.
+    Each image has its own size, pixel size and height range: it is an acquisition of its own, and the
+    id of its image is the id of the acquisition.
     """
 
     manifest = "depth.json"
+    viewer = "depthoptica"
 
-    def stacked(self, id, image_id):
-        stacked = self.load(id)["stacked"]
-        if image_id not in stacked:
-            abort(404)
-        return stacked[image_id]
-
-    # file of the image: "image" in the old manifests, else the name of the image
-    @staticmethod
-    def filename(image_id, entry):
-        return entry.get("image", entry["data"].get("name", image_id))
+    def entry(self, id, image_id):
+        return self.acquisition(self.load(id), image_id)
 
     def images(self, id):
-        depth_file = self.load(id)
-        folder = self.thumbnails_folder(id, depth_file)
+        manifest = self.load(id)
+        folder = self.thumbnails_folder(id, manifest)
         acquisitions = []
-        for image_id, entry in depth_file["stacked"].items():
-            data = entry["data"]
-            size = {"width": data["width"], "height": data["height"]}
-            thresholds = entry.get("edges", {}).get("threshold")
+        for entry in manifest["acquisitions"]:
+            label = entry.get("label", entry["id"])
+            thresholds = entry.get("edges", {}).get("thresholds")
             acquisitions.append(acquisition(
-                image_id,
-                label=data.get("label", image_id),
-                size=size,
+                entry["id"],
+                label=label,
+                size=entry["size"],
                 standalone_images=[image(
-                    image_id,
-                    data.get("label", image_id),
-                    size=size,
+                    entry["id"],
+                    label,
+                    size=entry["size"],
                     edgeThresholds=list(thresholds) if thresholds else None,
-                    hasThumbnail=self.has_thumbnail(folder, self.filename(image_id, entry)),
+                    hasThumbnail=self.has_thumbnail(folder, entry["image"]["file"]),
                 )],
             ))
-        return project(*acquisitions)
+        return project(*acquisitions, unit=manifest["unit"])
 
     def full_image(self, id, image_id):
-        return self.directory(id), self.filename(image_id, self.stacked(id, image_id))
+        return self.directory(id), self.entry(id, image_id)["image"]["file"]
 
     # the thumbnail has the file name of its image
     def thumbnail(self, id, image_id):
         folder, _ = super().thumbnail(id, image_id)
-        return folder, self.filename(image_id, self.stacked(id, image_id))
+        return folder, self.entry(id, image_id)["image"]["file"]
 
-    def depthmap(self, id, entry):
-        return cv2.imread(os.path.join(self.directory(id), entry["depthmap"]), cv2.IMREAD_GRAYSCALE | cv2.IMREAD_ANYDEPTH)
+    def read(self, id, entry, key, flags=cv2.IMREAD_GRAYSCALE):
+        return cv2.imread(os.path.join(self.directory(id), entry[key]["file"]), flags) if key in entry else None
 
-    # x, y in mm from the pixel ratio, z from the depth map scaled to [Zmin, Zmax]
+    def heightmap(self, id, entry):
+        return self.read(id, entry, "heightmap", cv2.IMREAD_GRAYSCALE | cv2.IMREAD_ANYDEPTH)
+
+    # x, y from the pixel size, z from the height map; z is None outside the mask
     def position(self, id, image_id, x, y):
         if image_id is None:
             abort(404)
-        entry = self.stacked(id, image_id)
-        data = entry["data"]
-        im = self.depthmap(id, entry)
+        entry = self.entry(id, image_id)
+        im = self.heightmap(id, entry)
         row = min(max(round(y), 0), im.shape[0] - 1)
         col = min(max(round(x), 0), im.shape[1] - 1)
-        depth = im[row][col]
-        return {
-            "x": x * data["PixelRatio"][0],
-            "y": y * data["PixelRatio"][1],
-            "z": ((data["Zmax"] - data["Zmin"]) / (2 ** (im.itemsize * 8)) * depth) + data["Zmin"],
-        }
+        px, py = scaled(entry, x, y)
+        mask = self.read(id, entry, "mask")
+        if masked(col, row, mask):
+            return {"x": px, "y": py, "z": None}
+        return {"x": px, "y": py, "z": height(entry, im, im[row][col])}
+
+
+# height of a value of the height map: its full range [0, max of the type] is [zMin, zMax]
+def height(entry, im, value):
+    heightmap = entry["heightmap"]
+    return heightmap["zMin"] + (heightmap["zMax"] - heightmap["zMin"]) * float(value) / np.iinfo(im.dtype).max
+
+
+# pixel (x, y) -> x, y in the unit of the manifest
+def scaled(entry, x, y):
+    return x * entry["pixelSize"][0], y * entry["pixelSize"][1]
 
 
 app = create_app(DepthDataset, logo="Depthoptica", version="1.4.0")
@@ -98,22 +103,16 @@ def compute_profile(id, image_id):
     threshold = request.args.get("threshold", "")
     smooth = request.args.get("smooth", "true").lower() != "false"
 
-    directory = dataset.directory(id)
-    entry = dataset.stacked(id, image_id)
-    image_data = entry["data"]
-
-    im = dataset.depthmap(id, entry)
-    mask = cv2.imread(f"{directory}/{entry['mask']}", cv2.IMREAD_GRAYSCALE) if "mask" in entry else None
-    edges = cv2.imread(f"{directory}/{entry['edges']['image']}", cv2.IMREAD_GRAYSCALE) if "edges" in entry else None
-    edge_threshold = entry["edges"]["threshold"][threshold] if ("edges" in entry and threshold in entry["edges"]["threshold"]) else 0
+    entry = dataset.entry(id, image_id)
+    im = dataset.heightmap(id, entry)
+    mask = dataset.read(id, entry, "mask")
+    edges = dataset.read(id, entry, "edges")
+    edge_threshold = entry.get("edges", {}).get("thresholds", {}).get(threshold, 0)
     list_distances = wu_line(x1, y1, x2, y2, im, mask, edges, edge_threshold)
 
     def to_3d(point):
-        return {
-            "x": point["x"] * image_data["PixelRatio"][0],
-            "y": point["y"] * image_data["PixelRatio"][1],
-            "z": ((image_data["Zmax"] - image_data["Zmin"]) / (2 ** (im.itemsize * 8)) * point["z"]) + image_data["Zmin"],
-        }
+        px, py = scaled(entry, point["x"], point["y"])
+        return {"x": px, "y": py, "z": height(entry, im, point["z"])}
 
     graphs_segments = []
     if len(list_distances) > 0:
@@ -135,8 +134,8 @@ def compute_profile(id, image_id):
             graphs_segments.append([{"x": point[0], "y": point[1]} for point in line_2d.tolist()])
     else:
         # the whole segment is masked
-        start = {"x": x1 * image_data["PixelRatio"][0], "y": y1 * image_data["PixelRatio"][1], "z": 0}
-        end = {"x": x2 * image_data["PixelRatio"][0], "y": y2 * image_data["PixelRatio"][1], "z": 0}
+        start = dict(zip("xy", scaled(entry, x1, y1)), z=0)
+        end = dict(zip("xy", scaled(entry, x2, y2)), z=0)
 
     return jsonify({
         "start": start,

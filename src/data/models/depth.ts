@@ -1,6 +1,7 @@
 import Color from "color"
 import {
-    Acquisition, Annotations, DequeMax2, Landmark, computeDistance, distanceVector, landmarkCSVRow, randomColorRGB,
+    Acquisition, Annotations, DequeMax2, Landmark, computeDistance, distanceVector, isFiniteNumber, isRecord, landmarkCSVRow,
+    randomColorRGB, readColor, readLabel, readList,
     type AnnotationsObject, type AnnotationsSelection, type Coordinates, type Coords3D,
     type LandmarkObject, type ProjectImage, type ScaleUnit,
 } from "optica-core"
@@ -135,11 +136,19 @@ export class Profile {
         }
     }
 
-    static fromObject(object: ProfileObject): Profile {
-        const landmarks = object.landmarks.map((landmark) => Landmark.fromJSON(landmark))
-        return new Profile(object.label, landmarks, object.subLandmarkSegments ?? [], object.edgeThreshold ?? "none",
-            object.smooth ?? true, object.color ? Color(object.color) : null)
+    // a saved profile: its ends that can be read; a chart that can't be read is computed again
+    // (the profiles without it are, see the store)
+    static fromObject(object: ProfileObject | Record<string, any>): Profile {
+        const landmarks = readList(object.landmarks, Landmark.fromJSON, "profile end")
+        return new Profile(readLabel(object.label), landmarks, readSegments(object.subLandmarkSegments),
+            readLabel(object.edgeThreshold, "none"), typeof object.smooth == "boolean" ? object.smooth : true, readColor(object.color))
     }
+}
+
+// the chart of a saved profile: segments of points, [] when it can't be read
+function readSegments(value: unknown): Coordinates[][] {
+    const point = (p: unknown) => isRecord(p) && isFiniteNumber(p.x) && isFiniteNumber(p.y)
+    return Array.isArray(value) && value.every((segment) => Array.isArray(segment) && segment.every(point)) ? value : []
 }
 
 export type DepthAnnotationsObject = AnnotationsObject & {
@@ -243,7 +252,7 @@ export class DepthAnnotations extends Annotations {
     merge(object: Partial<DepthAnnotationsObject>) {
         const used = new Set(this.allLandmarks.map((landmark) => landmark.id))
         super.merge(object)
-        const profiles = (object.profiles ?? []).map((profile) => Profile.fromObject(profile))
+        const profiles = readList(object?.profiles, Profile.fromObject, "profile")
         // super.merge used new ids for its landmarks: avoid them too
         this.allLandmarks.forEach((landmark) => used.add(landmark.id))
         this.claimIDs(profiles.flatMap((profile) => profile.landmarks.items), used)

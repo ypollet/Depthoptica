@@ -1,0 +1,92 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "urn:optica:depthoptica:manifest:1",
+    "title": "Depthoptica manifest (depth.json), version 1",
+    "description": "Stacked images with their height map: one acquisition per image, whose id is also the id of the image. The common fields are in core/api/optica_core/manifest.schema.json.",
+    "allOf": [
+        {
+            "$ref": "urn:optica:manifest:1"
+        }
+    ],
+    "properties": {
+        "viewer": {
+            "const": "depthoptica"
+        },
+        "acquisitions": {
+            "items": {
+                "$ref": "#/$defs/acquisition"
+            }
+        }
+    },
+    "$defs": {
+        "acquisition": {
+            "description": "One stacked image, its height map, mask and edges",
+            "allOf": [
+                {
+                    "$ref": "urn:optica:manifest:1#/$defs/acquisition"
+                }
+            ],
+            "required": [
+                "image",
+                "heightmap"
+            ],
+            "properties": {
+                "pixelSize": {
+                    "$ref": "urn:optica:manifest:1#/$defs/pixelSize",
+                    "description": "Required: a height profile needs it"
+                },
+                "image": {
+                    "$ref": "urn:optica:manifest:1#/$defs/fileRef"
+                },
+                "heightmap": {
+                    "description": "Gray image (8 or 16 bits) of the size of the image: 0 is zMin, the highest value of the type is zMax, higher is higher",
+                    "type": "object",
+                    "required": [
+                        "file",
+                        "zMin",
+                        "zMax"
+                    ],
+                    "properties": {
+                        "file": {
+                            "$ref": "urn:optica:manifest:1#/$defs/file"
+                        },
+                        "zMin": {
+                            "type": "number"
+                        },
+                        "zMax": {
+                            "type": "number"
+                        }
+                    },
+                    "additionalProperties": false
+                },
+                "mask": {
+                    "$ref": "urn:optica:manifest:1#/$defs/fileRef",
+                    "description": "Gray image of the size of the image, 0: outside the object (no height there)"
+                },
+                "edges": {
+                    "description": "Edge image (Sobel) of the size of the image, the profiles stop where it is above a threshold",
+                    "type": "object",
+                    "required": [
+                        "file",
+                        "thresholds"
+                    ],
+                    "properties": {
+                        "file": {
+                            "$ref": "urn:optica:manifest:1#/$defs/file"
+                        },
+                        "thresholds": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "number"
+                            }
+                        }
+                    },
+                    "additionalProperties": false
+                },
+                "images": false,
+                "standaloneImages": false
+            },
+            "unevaluatedProperties": false
+        }
+    }
+}
