@@ -78,7 +78,7 @@ function drawChart() {
     .on('mousemove', mousemove)
     .on('mouseout', mouseout);
 
-
+  // bottom axis
   const xScale = d3.scaleLinear()
     .range([margin.left, paddedWidth - margin.right])
     .domain([minX, maxX])
@@ -91,11 +91,10 @@ function drawChart() {
     .attr('transform', `translate(0,${height - margin.bottom})`)
 
 
-
+  // left axis
   const yScale = d3.scaleLinear()
     .range([height - margin.bottom, margin.top])
     .domain([minY, maxY])
-
 
   svgEl.append('g')
     .call(d3.axisLeft(yScale).ticks(vertical_ticks, "~s"))
@@ -104,7 +103,7 @@ function drawChart() {
       .attr("x1", width))
     .attr('transform', `translate(${margin.left},0)`)
 
-
+  // profile line
   const line = d3.line<Coordinates>()
     .x(function (d) {
       return xScale(d.x);
@@ -153,14 +152,6 @@ function drawChart() {
       .style("opacity", 1)
       .attr("cx", xScale(x0))
       .attr("cy", yScale(y0))
-    /*
-    var i = d3.bisect(scaledData.map(segment => segment.map(d => d.x)).flat(), x0, 0, scaledData.length - 1);
-    let selectedData = scaledData[i]!
-     selectedData.x / scaledData[scaledData.length - 1]!.x
-    focus
-      .attr("cx", xScale(selectedData.x))
-      .attr("cy", yScale(selectedData.y))
-    */
   }
   function mouseout() {
     focus.style("opacity", 0)

@@ -37,6 +37,7 @@ function updateProfile(profile: Profile) {
   return imagesStore.updateProfile(profile)
 }
 
+// Placed a landmark on the acquisition and put it in the correct annotation type
 async function place(pos: Coordinates) {
   const current = annotations.value
   if (!selectedImage.value || !current) {
@@ -70,6 +71,7 @@ function insert(annotation: Distance | Polygon, index: number, pos: Coordinates)
   annotation.landmarks.splice(index, 0, createLandmark({ marker: pos, image: selectedImage.value }, annotation.color))
 }
 
+// Move the selected landmark
 async function move(landmark: Landmark, pos: Coordinates) {
   if (!selectedImage.value) {
     return
